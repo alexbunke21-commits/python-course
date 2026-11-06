@@ -45,6 +45,24 @@ def delete_task(tasks):
     print("Завдання видалено.")
 
 
+def change_master_password(master_password):
+    for attempt in range(1, 3):
+        if getpass("Підтвердьте поточний головний пароль: ") == master_password:
+            break
+        print(f"Невірний пароль! Залишилося спроб: {2 - attempt}")
+    else:
+        print("Зміну пароля скасовано.")
+        return master_password
+
+    new_password = getpass("Введіть новий головний пароль: ")
+    if check_password_strength(new_password) == "слабкий":
+        print("Помилка: новий пароль слабкий. Пароль не змінено.")
+        return master_password
+
+    print("Головний пароль змінено.")
+    return new_password
+
+
 def main():
     master_password = getpass("Задайте головний пароль для цього сеансу: ")
     access_granted = login_gate(master_password)
@@ -58,6 +76,7 @@ def main():
         print("2. Додати завдання")
         print("3. Видалити завдання")
         print("4. Перевірити надійність пароля")
+        print("5. Змінити головний пароль")
         print("0. Вийти")
         choice = input("Оберіть дію: ").strip()
 
@@ -73,6 +92,8 @@ def main():
         elif choice == "4":
             password = getpass("Введіть пароль для перевірки: ")
             print(f"Надійність пароля: {check_password_strength(password)}.")
+        elif choice == "5":
+            master_password = change_master_password(master_password)
         elif choice == "0":
             return
         else:
