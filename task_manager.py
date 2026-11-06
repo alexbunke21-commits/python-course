@@ -14,11 +14,14 @@ def check_password_strength(password):
 
 
 def login_gate(master_password):
-    while True:
+    for attempt in range(1, 4):
         if getpass("Введіть головний пароль: ") == master_password:
             print("Вітаємо! Доступ дозволено.")
             return True
-        print("Невірний пароль!")
+        print(f"Невірний пароль! Залишилося спроб: {3 - attempt}")
+
+    print("Доступ заблоковано через підозрілу активність!")
+    return False
 
 
 def show_tasks(tasks):
