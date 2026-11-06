@@ -5,6 +5,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 TASKS_FILE = Path(__file__).with_name("tasks.json")
+STATS_FILE = Path(__file__).with_name("stats.json")
 
 
 def load_tasks():
@@ -61,6 +62,35 @@ def save_tasks(tasks, updated_tasks):
         print(f"Зміни не збережено: {error}")
         return False
     tasks[:] = updated_tasks
+    return True
+
+
+def load_stats():
+    try:
+        with STATS_FILE.open(encoding="utf-8-sig") as file:
+            stats = json.load(file)
+    except FileNotFoundError:
+        return 0
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        print("Попередження: статистику пошкоджено. Починаємо відлік заново.")
+        return 0
+    except OSError as error:
+        print(f"Не вдалося прочитати статистику: {error}")
+        return None
+
+    sessions = stats.get("sessions") if isinstance(stats, dict) else None
+    if type(sessions) is not int or sessions < 0:
+        print("Попередження: статистику пошкоджено. Починаємо відлік заново.")
+        return 0
+    return sessions
+
+
+def save_stats(sessions):
+    try:
+        write_json(STATS_FILE, {"sessions": sessions})
+    except OSError as error:
+        print(f"Не вдалося зберегти статистику: {error}")
+        return False
     return True
 
 
@@ -201,6 +231,12 @@ def main():
     master_password = set_master_password()
     if not login_gate(master_password):
         return
+
+    sessions = load_stats()
+    if sessions is not None:
+        sessions += 1
+        if save_stats(sessions):
+            print(f"Вітаємо! Це ваш {sessions}-й сеанс роботи з Менеджером задач")
 
     while True:
         print("\nМеню менеджера задач")
