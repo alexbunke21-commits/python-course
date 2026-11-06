@@ -47,7 +47,9 @@ def delete_task(tasks):
 
 def main():
     master_password = getpass("Задайте головний пароль для цього сеансу: ")
-    login_gate(master_password)
+    access_granted = login_gate(master_password)
+    if not access_granted:
+        return
 
     tasks = []
     while True:
