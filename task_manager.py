@@ -51,6 +51,12 @@ def delete_task(tasks):
         print("Завдання з таким номером немає.")
         return
 
+    task = tasks[number - 1]
+    confirmation = input(f'Ви дійсно бажаєте видалити завдання "{task}"? (так/ні) ')
+    if confirmation.strip().lower() != "так":
+        print("Видалення скасовано.")
+        return
+
     tasks.pop(number - 1)
     print("Завдання видалено.")
 
