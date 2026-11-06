@@ -1,4 +1,72 @@
+import json
+import random
 from getpass import getpass
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+TASKS_FILE = Path(__file__).with_name("tasks.json")
+
+
+def load_tasks():
+    try:
+        with TASKS_FILE.open(encoding="utf-8-sig") as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        return []
+    except OSError as error:
+        print(f"Не вдалося прочитати завдання: {error}")
+        return None
+
+    tasks = []
+    if not isinstance(data, list):
+        print("Попередження: у файлі завдань має бути список.")
+        return None
+    for task in data:
+        if isinstance(task, str):
+            tasks.append({"text": task, "done": False})
+        elif (
+            isinstance(task, dict)
+            and isinstance(task.get("text"), str)
+            and type(task.get("done")) is bool
+        ):
+            tasks.append(task)
+        else:
+            print("Попередження: файл містить запис невідомого формату.")
+            return None
+    return tasks
+
+
+def write_json(path, data):
+    temp_path = None
+    try:
+        with NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, delete=False
+        ) as file:
+            temp_path = Path(file.name)
+            json.dump(data, file, ensure_ascii=False, indent=2)
+            file.write("\n")
+        temp_path.replace(path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+
+def save_tasks(tasks, updated_tasks):
+    try:
+        write_json(TASKS_FILE, updated_tasks)
+    except OSError as error:
+        print(f"Зміни не збережено: {error}")
+        return False
+    tasks[:] = updated_tasks
+    return True
+
+
+def set_master_password():
+    while True:
+        password = getpass("Задайте головний пароль для цього сеансу: ")
+        if password.strip():
+            return password
+        print("Головний пароль не може бути порожнім.")
 
 
 def check_password_strength(password):
@@ -27,38 +95,81 @@ def login_gate(master_password):
 def show_tasks(tasks):
     if not tasks:
         print("Список завдань порожній.")
+        return
     for number, task in enumerate(tasks, start=1):
-        print(f"{number}. {task}")
+        status = "[x]" if task["done"] else "[ ]"
+        print(f"{number}. {status} {task['text']}")
 
 
-def delete_task(tasks):
+def select_task_index(tasks):
     show_tasks(tasks)
     if not tasks:
-        return
+        return None
 
     entered_number = input("Введіть номер завдання: ").strip()
-    if not entered_number.isdigit():
+    if not entered_number.isdecimal():
         print("Введіть номер завдання цифрами.")
-        return
+        return None
 
     try:
         number = int(entered_number)
     except ValueError:
         print("Неприпустимий номер завдання.")
-        return
-
+        return None
     if not 1 <= number <= len(tasks):
         print("Завдання з таким номером немає.")
+        return None
+    return number - 1
+
+
+def add_task(tasks):
+    text = input("Введіть текст завдання: ").strip()
+    if not text:
+        print("Текст завдання не може бути порожнім.")
         return
 
-    task = tasks[number - 1]
-    confirmation = input(f'Ви дійсно бажаєте видалити завдання "{task}"? (так/ні) ')
+    updated_tasks = [*tasks, {"text": text, "done": False}]
+    if save_tasks(tasks, updated_tasks):
+        print("Завдання додано.")
+
+
+def delete_task(tasks):
+    index = select_task_index(tasks)
+    if index is None:
+        return
+
+    task_text = tasks[index]["text"]
+    confirmation = input(f'Ви дійсно бажаєте видалити завдання "{task_text}"? (так/ні) ')
     if confirmation.strip().lower() != "так":
         print("Видалення скасовано.")
         return
 
-    tasks.pop(number - 1)
-    print("Завдання видалено.")
+    updated_tasks = tasks.copy()
+    updated_tasks.pop(index)
+    if save_tasks(tasks, updated_tasks):
+        print("Завдання видалено.")
+
+
+def complete_task(tasks):
+    index = select_task_index(tasks)
+    if index is None:
+        return
+    if tasks[index]["done"]:
+        print("Це завдання вже виконано.")
+        return
+
+    updated_tasks = tasks.copy()
+    updated_tasks[index] = {**tasks[index], "done": True}
+    if save_tasks(tasks, updated_tasks):
+        print("Завдання позначено виконаним.")
+
+
+def suggest_task(tasks):
+    pending = [task["text"] for task in tasks if not task["done"]]
+    if not pending:
+        print("Немає невиконаних завдань.")
+        return
+    print(f"Спробуйте виконати: {random.choice(pending)}")
 
 
 def change_master_password(master_password):
@@ -80,12 +191,14 @@ def change_master_password(master_password):
 
 
 def main():
-    master_password = getpass("Задайте головний пароль для цього сеансу: ")
-    access_granted = login_gate(master_password)
-    if not access_granted:
+    tasks = load_tasks()
+    if tasks is None:
         return
 
-    tasks = []
+    master_password = set_master_password()
+    if not login_gate(master_password):
+        return
+
     while True:
         print("\nМеню менеджера задач")
         print("1. Показати завдання")
@@ -93,16 +206,15 @@ def main():
         print("3. Видалити завдання")
         print("4. Перевірити надійність пароля")
         print("5. Змінити головний пароль")
+        print("6. Позначити завдання виконаним")
+        print("7. Запропонувати випадкове невиконане завдання")
         print("0. Вийти")
         choice = input("Оберіть дію: ").strip()
 
         if choice == "1":
             show_tasks(tasks)
         elif choice == "2":
-            task = input("Введіть текст завдання: ").strip()
-            if task:
-                tasks.append(task)
-                print("Завдання додано.")
+            add_task(tasks)
         elif choice == "3":
             delete_task(tasks)
         elif choice == "4":
@@ -110,11 +222,18 @@ def main():
             print(f"Надійність пароля: {check_password_strength(password)}.")
         elif choice == "5":
             master_password = change_master_password(master_password)
+        elif choice == "6":
+            complete_task(tasks)
+        elif choice == "7":
+            suggest_task(tasks)
         elif choice == "0":
             return
         else:
-            print("Оберіть пункт із меню.")
+            print("Невідомий пункт. Оберіть дію з меню.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (EOFError, KeyboardInterrupt):
+        print("\nСеанс завершено.")
