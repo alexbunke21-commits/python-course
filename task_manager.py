@@ -13,6 +13,9 @@ def load_tasks():
             data = json.load(file)
     except FileNotFoundError:
         return []
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        print("Попередження: файл даних пошкоджено. Створюємо новий список.")
+        return []
     except OSError as error:
         print(f"Не вдалося прочитати завдання: {error}")
         return None
