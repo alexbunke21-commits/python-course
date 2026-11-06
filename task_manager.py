@@ -36,7 +36,17 @@ def delete_task(tasks):
     if not tasks:
         return
 
-    number = int(input("Введіть номер завдання: "))
+    entered_number = input("Введіть номер завдання: ").strip()
+    if not entered_number.isdigit():
+        print("Введіть номер завдання цифрами.")
+        return
+
+    try:
+        number = int(entered_number)
+    except ValueError:
+        print("Неприпустимий номер завдання.")
+        return
+
     if not 1 <= number <= len(tasks):
         print("Завдання з таким номером немає.")
         return
